@@ -5,6 +5,8 @@
   text-align: center;
 }
 
+body {background-color: black;}
+
 .logo {
   height: 6em;
   padding: 1.5em;
@@ -33,10 +35,30 @@
   }
 }
 
-.card {
-  padding: 2em;
+.card {padding: 2em;}
+
+table {border-radius: 10px;}
+.read-the-docs
+{
+  align-content: center; justify-self: center; font-size:xx-large;
 }
 
-.read-the-docs {
-  color: #888;
+.titleScore {color: #02f6ff;}
+th
+{
+  background-color: #02f6ff;
+  color: black;
+  padding-left: 50px;
+  padding-right: 50px;
+  
+}
+.rank {border-top-left-radius: 10px;}
+.score {border-top-right-radius: 10px;}
+.tableRowEven
+{
+  background-color: #0b2524; color: aliceblue;
+}
+.tableRowOdd
+{
+  background-color: #0c1818; color: aliceblue;
 }
