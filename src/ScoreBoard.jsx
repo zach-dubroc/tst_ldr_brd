@@ -16,7 +16,7 @@ export default function ScoreBoard({leaderBoard})
           </tr>
           {leaderBoard.map((entry, index) => (
             <tr key={index} className={index % 2 === 0 ? 'tableRowEven' : 'tableRowOdd'}>
-              <td>{1}</td>
+              <td>{index + 1}</td>
               <td>{entry.username}</td>
               <td>{entry.score}</td>
             </tr>
