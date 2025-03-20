@@ -1,20 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import './App.css';
 import ScoreBoard from './ScoreBoard.jsx';
 
 function App() {
   const [scoreBoard, setScoreBoard] = useState([]);
+  const [isUsingPolling, setIsUsingPolling] = useState(false);
+  const pollingIntervalRef = useRef(null);
 
   // Environment-based URLs
-  const score_user =
-    import.meta.env.VITE_REACT_API_SCORE_URL ||
-    'http://localhost:3000/get-leaderboard';
+  const score_user = import.meta.env.VITE_REACT_API_SCORE_URL;
+  const websocket_url = import.meta.env.VITE_REACT_API_WEBSOCKET_URL;
 
-  const websocket_url =
-    import.meta.env.VITE_REACT_API_WEBSOCKET_URL || 'ws://localhost:3000/ws';
-
-  // Fetch initial leaderboard data
+  // Fetch leaderboard data
   const fetchLeaderBoard = async () => {
     try {
       const response = await axios.get(score_user);
@@ -25,14 +23,44 @@ function App() {
     }
   };
 
+  // Start polling as fallback
+  const startPolling = () => {
+    console.log('Starting polling fallback');
+    setIsUsingPolling(true);
+    // Clear any existing interval
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+    }
+    // Set up new polling interval
+    pollingIntervalRef.current = setInterval(fetchLeaderBoard, 5000);
+    // Initial fetch
+    fetchLeaderBoard();
+  };
+
   useEffect(() => {
     let ws;
+    let connectionTimeout;
 
     const connectWebSocket = () => {
+      console.log('Attempting WebSocket connection to:', websocket_url);
       ws = new WebSocket(websocket_url);
 
+      // Set connection timeout - if it doesn't connect within 5 seconds, fall back to polling
+      connectionTimeout = setTimeout(() => {
+        if (ws.readyState !== WebSocket.OPEN) {
+          console.log('WebSocket connection timed out');
+          startPolling();
+        }
+      }, 5000);
+
       ws.onopen = () => {
-        console.log('WebSocket connected');
+        console.log('WebSocket connected successfully');
+        clearTimeout(connectionTimeout);
+        // If we were polling, we can stop now
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          setIsUsingPolling(false);
+        }
       };
 
       ws.onmessage = (event) => {
@@ -46,29 +74,39 @@ function App() {
 
       ws.onerror = (error) => {
         console.error('WebSocket error:', error);
+        clearTimeout(connectionTimeout);
+        // Fall back to polling on error
+        startPolling();
       };
 
       ws.onclose = () => {
         console.log('WebSocket disconnected');
-        setTimeout(() => {
-          console.log('Attempting to reconnect...');
-          connectWebSocket();
-        }, 5000);
+        // Fall back to polling on close
+        startPolling();
       };
     };
 
-    connectWebSocket();
+    // First try WebSocket
+    if (websocket_url) {
+      connectWebSocket();
+    } else {
+      // If no WebSocket URL, just use polling
+      startPolling();
+    }
 
+    // Clean up on unmount
     return () => {
       if (ws) {
         ws.close();
       }
+      if (connectionTimeout) {
+        clearTimeout(connectionTimeout);
+      }
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
     };
-  }, [websocket_url]); // Notice I added websocket_url as a dependency here
-
-  useEffect(() => {
-    fetchLeaderBoard();
-  }, [score_user]); // Added this dependency too
+  }, [websocket_url, score_user]);
 
   return <ScoreBoard leaderBoard={scoreBoard} />;
 }
